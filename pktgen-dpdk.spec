@@ -8,6 +8,8 @@ License:	BSD
 URL:		http://dpdk.org/browse/apps/pktgen-dpdk/refs/
 Source0:	http://dpdk.org/browse/apps/pktgen-dpdk/snapshot/pktgen-%{version}.tar.gz
 
+BuildRequires:  make
+BuildRequires:  gcc
 BuildRequires:	dpdk-devel >= 1.8.0
 BuildRequires:	libpcap-devel zlib-devel
 BuildConflicts: lua-devel
