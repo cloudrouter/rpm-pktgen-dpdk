@@ -1,25 +1,33 @@
+%global _rte_target x86_64-default-linuxapp-gcc
+
 Name:		pktgen-dpdk
-Version:	2.9.8
+Version:	3.0.14
 Release:	1%{?dist}
 Summary:	Traffic generator utilizing DPDK
 
 Group:		Applications/Internet
 License:	BSD
-URL:		http://dpdk.org/browse/apps/pktgen-dpdk/refs/
+URL:		https://github.com/Pktgen/Pktgen-DPDK/
+
 Source0:	http://dpdk.org/browse/apps/pktgen-dpdk/snapshot/pktgen-%{version}.tar.gz
 
-BuildRequires:  make
-BuildRequires:  gcc
-BuildRequires:	dpdk-devel >= 1.8.0
-BuildRequires:	libpcap-devel zlib-devel
-BuildConflicts: lua-devel
+BuildRequires:	dpdk-devel >= 16.07
+# bogus deps due to makefile confusion over static linkage and whatnot
+BuildRequires:	gcc
+BuildRequires:	libpcap-devel
+BuildRequires:	make
+BuildRequires:	numactl-devel
+BuildRequires:	openssl-devel
+BuildRequires:	zlib-devel
 
 # The tarball contains two bundled 'n hacked up Lua versions, sigh.
 # There are at least two additions to upstream: lua_shell and lua-socket
 # so a simple rm -rf of the directory wont cut it. Needs to be
 # unbundled or exception requested.
 # This is the one that gets built and statically linked in the binary:
-Provides:	bundled(lua) = 5.3.0
+Provides:	bundled(lua) = 5.3.2
+# It also conflicts with system-wide installation of lua-devel, sigh.
+BuildConflicts: lua-devel
 
 %description
 %{summary}
@@ -33,13 +41,13 @@ unset RTE_TARGET
 . /etc/profile.d/dpdk-sdk-%{_arch}.sh
 
 # Hack up Lua library path to our private libdir
-lua="lua-5.3.0"
+lua="lua"
 sed -ie 's:/usr/local:%{_libdir}:g' lib/${lua}/src/luaconf.h
 sed -ie 's:share/lua/.*:/%{name}/":g' lib/${lua}/src/luaconf.h
 sed -ie 's:lib/lua/.*:/%{name}/":g' lib/${lua}/src/luaconf.h
 
 # Doesn't build with the default -Werror, sigh...
-export EXTRA_CFLAGS="%{optflags} -Wno-error"
+export EXTRA_CFLAGS="$(echo %{optflags} -Wno-error | sed -e 's:-march=[[:alnum:]]* ::g')"
 
 # Parallel build doesn't work
 # Work around DPDK makefiles, we're not building shared libraries here
@@ -50,8 +58,7 @@ make V=1 CONFIG_RTE_BUILD_SHARED_LIB=n
 # No working "install" target, lets do it manually (sigh)
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_libdir}/%{name}
-. /etc/profile.d/dpdk-sdk-%{_arch}.sh
-install -m 755 app/app/${RTE_TARGET}/pktgen %{buildroot}%{_bindir}/pktgen
+install -m 755 app/app/%{_rte_target}/pktgen %{buildroot}%{_bindir}/pktgen
 for f in Pktgen.lua PktgenGUI.lua; do
    install -m 644 ${f} %{buildroot}%{_libdir}/%{name}/${f}
 done
@@ -64,6 +71,9 @@ done
 %{_libdir}/%{name}
 
 %changelog
+* Sun Oct 16 2016 John Siegrist <john@complects.com> - 3.0.14-1
+- Update to 3.0.14
+
 * Mon Feb 01 2016 Jay Turner <jkt@iix.net> - 2.9.8-1
 - Update to 2.9.8
 - Initial build for CloudRouter Project
